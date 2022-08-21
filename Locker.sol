@@ -1,0 +1,272 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.16;
+
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+abstract contract Ownable is Context {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    constructor() {
+        _transferOwnership(_msgSender());
+    }
+
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    function renounceOwnership() public virtual onlyOwner {
+        _transferOwnership(address(0));
+    }
+
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        _transferOwnership(newOwner);
+    }
+
+    function _transferOwnership(address newOwner) internal virtual {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+
+interface IBEP20 {
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+contract Locker is Ownable {
+    uint private constant SECONDS_PER_DAY = 24 * 60 * 60;
+    uint private constant SECONDS_PER_HOUR = 60 * 60;
+    uint private constant SECONDS_PER_MINUTE = 60;
+    int private constant OFFSET19700101 = 2440588;
+
+    function _daysFromDate(uint year, uint month, uint day) internal pure returns (uint _days) {
+        require(year >= 1970);
+        int _year = int(year);
+        int _month = int(month);
+        int _day = int(day);
+
+        int __days = _day
+          - 32075
+          + 1461 * (_year + 4800 + (_month - 14) / 12) / 4
+          + 367 * (_month - 2 - (_month - 14) / 12 * 12) / 12
+          - 3 * ((_year + 4900 + (_month - 14) / 12) / 100) / 4
+          - OFFSET19700101;
+
+        _days = uint(__days);
+    }
+
+    function timestampFromDateTime(uint year, uint month, uint day, uint hour, uint minute, uint second) internal pure returns (uint timestamp) {
+        timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second;
+    }
+
+    /*
+    - IBEP20 adresi girilecek.
+    - Test amaçlı nextDistributionTheLockedTokens() çalıştırılıp hata alındığı görülecek
+    - firstDistributeTheLockedTokens() çalıştırılıp başarılı bir şekilde ilk unlock sağlanacak.
+    - nextDistributionTheLockedTokens() çalıştırılıp 1 tane daha unlock yapılacak.
+    - 400 defa yaptıktan sonra _nextAmountOfDistribution = 0 olduğu görülmesi gerekiyor çünkü totalde 400 defa unlock yapıldı
+    - readBalanceOfLocker() ile işimiz yok, bunu kontrol ederek unlock yapmıyoruz, unlockları _nextAmountOfDistribution'a göre yapıyoruz.
+    - toplamda 400 adet unlock yapıldı ise unlockHundredYearsLater çalıştırılıp içerideki tüm balance çekilebilir
+    - testler bittikten sonra nextDistributionTheLockedTokens() içindeki 1 seconds require'ı 90 days olarak değiştirilecek
+    - testler bittikten sonra nextDistributionTheLockedTokens() içindeki for silinecek, altındaki yorumlu alan aktif edilecek
+
+    - ÇOK ÖNEMLİ NOT: nextDistributionTheLockedTokens() içerisinde for ile transfer dönemedim çünkü _nextAmountOfDistribution update olmuyor
+    - çünkü 399 tane transfer aynı anda olduğu için araya giremiyor ve 399 defa _nextAmountOfDistribution update olmuyor.
+    - ama şu anki teker teker gönderimde hiçbir sorun olmamakta.
+    */
+    using SafeMath for uint256;
+    IBEP20 tokenization;
+
+    uint public numberOfDistributionCompleted;
+    bool firstDistributed;
+    uint public _lastTimeDistributed;
+    uint256 public _nextAmountOfDistribution;
+    uint256 public _totalUnlocked;
+
+    event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
+
+    uint public unlockTime = timestampFromDateTime(2022, 8, 20, 23, 59, 59);
+
+    constructor (address _tokenization) {
+        tokenization = IBEP20(_tokenization);
+        numberOfDistributionCompleted = 0;
+        firstDistributed = false;
+        // _nextAmountOfDistribution = 800000 ether;
+        _nextAmountOfDistribution = 32000000 ether;
+    }
+
+    function firstDistributeTheLockedTokens() public virtual onlyOwner returns (bool) {
+        require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
+        require(firstDistributed == false, "Already executed!");
+
+        tokenization.transfer(msg.sender, _nextAmountOfDistribution);
+        _totalUnlocked += _nextAmountOfDistribution;
+        _lastTimeDistributed = block.timestamp;
+        firstDistributed = true;
+        emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
+        numberOfDistributionCompleted += 1;
+        // _nextAmountOfDistribution = _nextAmountOfDistribution.div(101255).mul(100000);
+        _nextAmountOfDistribution = _nextAmountOfDistribution.div(11588).mul(10000);
+        return true;
+    }
+
+    function readFirstDistributed() public view onlyOwner returns (bool) {
+        return firstDistributed;
+    }
+
+    function nextDistributionTheLockedTokens() public virtual onlyOwner returns (bool) {
+        require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
+        require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
+        require(_lastTimeDistributed + 1 seconds <= block.timestamp, "It hasn't been 1 second yet!");
+        // require(_lastTimeDistributed + 30 days <= block.timestamp, "It hasn't been 90 days yet!");
+        // require(numberOfDistributionCompleted <= 59, "All distributions are completed!");
+        require(numberOfDistributionCompleted <= 9, "All distributions are completed!");
+        _totalUnlocked += _nextAmountOfDistribution;
+        _lastTimeDistributed = block.timestamp;
+        // if (numberOfDistributionCompleted == 60) {
+        if (numberOfDistributionCompleted == 9) {
+            tokenization.transfer(msg.sender, _nextAmountOfDistribution.div(100).mul(98));
+        } else {
+            tokenization.transfer(msg.sender, _nextAmountOfDistribution);
+        }
+        emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
+        numberOfDistributionCompleted += 1;
+        // _nextAmountOfDistribution = _nextAmountOfDistribution.div(101255).mul(100000);
+        _nextAmountOfDistribution = _nextAmountOfDistribution.div(11588).mul(10000);
+        // if (numberOfDistributionCompleted == 60) {
+        if (numberOfDistributionCompleted == 10) {
+            _nextAmountOfDistribution = 0;
+        }
+        return true;
+    }
+
+    function readLockedTokenName() public view virtual onlyOwner returns (string memory) {
+        return tokenization.name();
+    }
+    function readLockedTokenSymbol() public view virtual onlyOwner returns (string memory) {
+        return tokenization.symbol();
+    }
+    function readBalanceOfLocker() public view virtual onlyOwner returns (uint256) {
+        return tokenization.balanceOf(address(this));
+    }
+    function unlockHundredYearsLater() public virtual onlyOwner returns (bool) {
+        // require(numberOfDistributionCompleted == 10, "It hasn't been completed 10 distributions yet!");
+        require(numberOfDistributionCompleted == 60, "It hasn't been completed 60 distributions yet!");
+        uint256 _thisBalance = tokenization.balanceOf(address(this));
+        require(_thisBalance > 0, "Contract doesn't have balance!");
+        tokenization.transfer(msg.sender, _thisBalance);
+        return true;
+    }
+
+}
+
+library SafeMath {
+
+    function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        unchecked {
+            uint256 c = a + b;
+            if (c < a) return (false, 0);
+            return (true, c);
+        }
+    }
+    function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        unchecked {
+            if (b > a) return (false, 0);
+            return (true, a - b);
+        }
+    }
+    function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        unchecked {
+            // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+            // benefit is lost if 'b' is also tested.
+            // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+            if (a == 0) return (true, 0);
+            uint256 c = a * b;
+            if (c / a != b) return (false, 0);
+            return (true, c);
+        }
+    }
+    function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        unchecked {
+            if (b == 0) return (false, 0);
+            return (true, a / b);
+        }
+    }
+    function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
+        unchecked {
+            if (b == 0) return (false, 0);
+            return (true, a % b);
+        }
+    }
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a + b;
+    }
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a - b;
+    }
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a * b;
+    }
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a / b;
+    }
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a % b;
+    }
+    function sub(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        unchecked {
+            require(b <= a, errorMessage);
+            return a - b;
+        }
+    }
+    function div(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        unchecked {
+            require(b > 0, errorMessage);
+            return a / b;
+        }
+    }
+    function mod(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        unchecked {
+            require(b > 0, errorMessage);
+            return a % b;
+        }
+    }
+}
