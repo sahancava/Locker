@@ -111,7 +111,7 @@ contract Locker is Ownable {
 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
 
-    uint public unlockTime = timestampFromDateTime(2022, 8, 20, 23, 59, 59);
+    uint public unlockTime = timestampFromDateTime(2022, 8, 21, 23, 59, 59);
 
     constructor (address _tokenization) {
         tokenization = IBEP20(_tokenization);
