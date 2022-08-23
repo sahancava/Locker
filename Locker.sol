@@ -111,17 +111,26 @@ contract Locker is Ownable {
 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
 
-    uint public unlockTime = timestampFromDateTime(2022, 8, 21, 23, 59, 59);
+    uint public unlockTime = timestampFromDateTime(2022, 8, 23, 15, 22, 59);
+
+    bool internal _inUnlockingProcess;
+
+    modifier lockTheUnlockProcess() {
+        require(!_inUnlockingProcess, "No re-entrancy");
+        _inUnlockingProcess = true;
+        _;
+        _inUnlockingProcess = false;
+    }
 
     constructor (address _tokenization) {
         tokenization = IBEP20(_tokenization);
         numberOfDistributionCompleted = 0;
         firstDistributed = false;
-        // _nextAmountOfDistribution = 800000 ether;
-        _nextAmountOfDistribution = 32000000 ether;
+        _nextAmountOfDistribution = 800000 ether;
+        // _nextAmountOfDistribution = 32000000 ether;
     }
 
-    function firstDistributeTheLockedTokens() public virtual onlyOwner returns (bool) {
+    function firstDistributeTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
         require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
         require(firstDistributed == false, "Already executed!");
 
@@ -131,8 +140,8 @@ contract Locker is Ownable {
         firstDistributed = true;
         emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
         numberOfDistributionCompleted += 1;
-        // _nextAmountOfDistribution = _nextAmountOfDistribution.div(101255).mul(100000);
-        _nextAmountOfDistribution = _nextAmountOfDistribution.div(11588).mul(10000);
+        _nextAmountOfDistribution = _nextAmountOfDistribution.div(101255).mul(100000);
+        // _nextAmountOfDistribution = _nextAmountOfDistribution.div(11588).mul(10000);
         return true;
     }
 
@@ -140,29 +149,26 @@ contract Locker is Ownable {
         return firstDistributed;
     }
 
-    function nextDistributionTheLockedTokens() public virtual onlyOwner returns (bool) {
+    function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
         require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
         require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
-        require(_lastTimeDistributed + 1 seconds <= block.timestamp, "It hasn't been 1 second yet!");
+        require(_lastTimeDistributed + 10 seconds <= block.timestamp, "It hasn't been 1 second yet!");
         // require(_lastTimeDistributed + 30 days <= block.timestamp, "It hasn't been 90 days yet!");
-        // require(numberOfDistributionCompleted <= 59, "All distributions are completed!");
-        require(numberOfDistributionCompleted <= 9, "All distributions are completed!");
-        _totalUnlocked += _nextAmountOfDistribution;
+        require(numberOfDistributionCompleted <= 59, "All distributions are completed!");
+        // require(numberOfDistributionCompleted <= 9, "All distributions are completed!");
         _lastTimeDistributed = block.timestamp;
-        // if (numberOfDistributionCompleted == 60) {
-        if (numberOfDistributionCompleted == 9) {
-            tokenization.transfer(msg.sender, _nextAmountOfDistribution.div(100).mul(98));
+        if (numberOfDistributionCompleted == 59) {
+        // if (numberOfDistributionCompleted == 9) {
+            tokenization.transfer(msg.sender, _nextAmountOfDistribution.div(100).mul(90));
+            _totalUnlocked += _nextAmountOfDistribution.div(100).mul(90);
         } else {
             tokenization.transfer(msg.sender, _nextAmountOfDistribution);
+            _totalUnlocked += _nextAmountOfDistribution;
         }
         emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
         numberOfDistributionCompleted += 1;
-        // _nextAmountOfDistribution = _nextAmountOfDistribution.div(101255).mul(100000);
-        _nextAmountOfDistribution = _nextAmountOfDistribution.div(11588).mul(10000);
-        // if (numberOfDistributionCompleted == 60) {
-        if (numberOfDistributionCompleted == 10) {
-            _nextAmountOfDistribution = 0;
-        }
+        _nextAmountOfDistribution = _nextAmountOfDistribution.div(101255).mul(100000);
+        // _nextAmountOfDistribution = _nextAmountOfDistribution.div(11588).mul(10000);
         return true;
     }
 
@@ -181,6 +187,11 @@ contract Locker is Ownable {
         uint256 _thisBalance = tokenization.balanceOf(address(this));
         require(_thisBalance > 0, "Contract doesn't have balance!");
         tokenization.transfer(msg.sender, _thisBalance);
+        if (numberOfDistributionCompleted == 60) {
+        // if (numberOfDistributionCompleted == 10) {
+            _nextAmountOfDistribution = 0;
+        }
+        numberOfDistributionCompleted++;
         return true;
     }
 
