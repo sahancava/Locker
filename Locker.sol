@@ -44,17 +44,20 @@ abstract contract Ownable is Context {
         emit OwnershipTransferred(oldOwner, newOwner);
     }
 }
-
-interface IBEP20 {
-    function name() external view returns (string memory);
-    function symbol() external view returns (string memory);
-    function decimals() external view returns (uint8);
+interface IERC20 {
     function totalSupply() external view returns (uint256);
     function balanceOf(address account) external view returns (uint256);
     function transfer(address recipient, uint256 amount) external returns (bool);
     function allowance(address owner, address spender) external view returns (uint256);
     function approve(address spender, uint256 amount) external returns (bool);
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
@@ -85,23 +88,8 @@ contract Locker is Ownable {
         timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second;
     }
 
-    /*
-    - IBEP20 adresi girilecek.
-    - Test amaçlı nextDistributionTheLockedTokens() çalıştırılıp hata alındığı görülecek
-    - firstDistributeTheLockedTokens() çalıştırılıp başarılı bir şekilde ilk unlock sağlanacak.
-    - nextDistributionTheLockedTokens() çalıştırılıp 1 tane daha unlock yapılacak.
-    - 400 defa yaptıktan sonra _nextAmountOfDistribution = 0 olduğu görülmesi gerekiyor çünkü totalde 400 defa unlock yapıldı
-    - readBalanceOfLocker() ile işimiz yok, bunu kontrol ederek unlock yapmıyoruz, unlockları _nextAmountOfDistribution'a göre yapıyoruz.
-    - toplamda 400 adet unlock yapıldı ise unlockHundredYearsLater çalıştırılıp içerideki tüm balance çekilebilir
-    - testler bittikten sonra nextDistributionTheLockedTokens() içindeki 1 seconds require'ı 90 days olarak değiştirilecek
-    - testler bittikten sonra nextDistributionTheLockedTokens() içindeki for silinecek, altındaki yorumlu alan aktif edilecek
-
-    - ÇOK ÖNEMLİ NOT: nextDistributionTheLockedTokens() içerisinde for ile transfer dönemedim çünkü _nextAmountOfDistribution update olmuyor
-    - çünkü 399 tane transfer aynı anda olduğu için araya giremiyor ve 399 defa _nextAmountOfDistribution update olmuyor.
-    - ama şu anki teker teker gönderimde hiçbir sorun olmamakta.
-    */
     using SafeMath for uint256;
-    IBEP20 tokenization;
+    IERC20 tokenization;
 
     uint public numberOfDistributionCompleted;
     bool firstDistributed;
@@ -123,11 +111,10 @@ contract Locker is Ownable {
     }
 
     constructor (address _tokenization) {
-        tokenization = IBEP20(_tokenization);
+        tokenization = IERC20(_tokenization);
         numberOfDistributionCompleted = 0;
         firstDistributed = false;
         _nextAmountOfDistribution = 800000 ether;
-        // _nextAmountOfDistribution = 32000000 ether;
     }
 
     function firstDistributeTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
@@ -141,7 +128,6 @@ contract Locker is Ownable {
         emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
         numberOfDistributionCompleted += 1;
         _nextAmountOfDistribution = _nextAmountOfDistribution.div(101255).mul(100000);
-        // _nextAmountOfDistribution = _nextAmountOfDistribution.div(11588).mul(10000);
         return true;
     }
 
@@ -152,13 +138,10 @@ contract Locker is Ownable {
     function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
         require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
         require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
-        require(_lastTimeDistributed + 10 seconds <= block.timestamp, "It hasn't been 1 second yet!");
-        // require(_lastTimeDistributed + 30 days <= block.timestamp, "It hasn't been 90 days yet!");
+        require(_lastTimeDistributed + 1 seconds <= block.timestamp, "It hasn't been 1 second yet!");
         require(numberOfDistributionCompleted <= 59, "All distributions are completed!");
-        // require(numberOfDistributionCompleted <= 9, "All distributions are completed!");
         _lastTimeDistributed = block.timestamp;
         if (numberOfDistributionCompleted == 59) {
-        // if (numberOfDistributionCompleted == 9) {
             tokenization.transfer(msg.sender, _nextAmountOfDistribution.div(100).mul(90));
             _totalUnlocked += _nextAmountOfDistribution.div(100).mul(90);
         } else {
@@ -168,7 +151,6 @@ contract Locker is Ownable {
         emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
         numberOfDistributionCompleted += 1;
         _nextAmountOfDistribution = _nextAmountOfDistribution.div(101255).mul(100000);
-        // _nextAmountOfDistribution = _nextAmountOfDistribution.div(11588).mul(10000);
         return true;
     }
 
@@ -182,15 +164,14 @@ contract Locker is Ownable {
         return tokenization.balanceOf(address(this));
     }
     function unlockHundredYearsLater() public virtual onlyOwner returns (bool) {
-        // require(numberOfDistributionCompleted == 10, "It hasn't been completed 10 distributions yet!");
-        require(numberOfDistributionCompleted == 60, "It hasn't been completed 60 distributions yet!");
+        require(numberOfDistributionCompleted == 60, "Either it's already been 60 distributions or already exceeded it!");
         uint256 _thisBalance = tokenization.balanceOf(address(this));
         require(_thisBalance > 0, "Contract doesn't have balance!");
         tokenization.transfer(msg.sender, _thisBalance);
         if (numberOfDistributionCompleted == 60) {
-        // if (numberOfDistributionCompleted == 10) {
             _nextAmountOfDistribution = 0;
         }
+        _totalUnlocked += _thisBalance;
         numberOfDistributionCompleted++;
         return true;
     }
