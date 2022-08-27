@@ -99,7 +99,7 @@ contract Locker is Ownable {
 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
 
-    uint public unlockTime = timestampFromDateTime(2022, 8, 23, 15, 22, 59);
+    uint public unlockTime = timestampFromDateTime(2022, 8, 23, 15, 21, 59);
 
     bool internal _inUnlockingProcess;
 
