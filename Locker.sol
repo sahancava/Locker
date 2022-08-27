@@ -163,7 +163,7 @@ contract Locker is Ownable {
     function readBalanceOfLocker() public view virtual onlyOwner returns (uint256) {
         return tokenization.balanceOf(address(this));
     }
-    function unlockHundredYearsLater() public virtual onlyOwner returns (bool) {
+    function unlockHundredYearsLater() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
         require(numberOfDistributionCompleted == 60, "Either it's already been 60 distributions or already exceeded it!");
         uint256 _thisBalance = tokenization.balanceOf(address(this));
         require(_thisBalance > 0, "Contract doesn't have balance!");
