@@ -62,7 +62,7 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract Locker is Ownable {
+contract Locker2032 is Ownable {
     uint private constant SECONDS_PER_DAY = 24 * 60 * 60;
     uint private constant SECONDS_PER_HOUR = 60 * 60;
     uint private constant SECONDS_PER_MINUTE = 60;
@@ -99,7 +99,7 @@ contract Locker is Ownable {
 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
 
-    uint public unlockTime = timestampFromDateTime(2022, 8, 23, 15, 21, 59);
+    uint public unlockTime = timestampFromDateTime(2032, 8, 31, 23, 59, 59);
 
     bool internal _inUnlockingProcess;
 
@@ -114,7 +114,7 @@ contract Locker is Ownable {
         tokenization = IERC20(_tokenization);
         numberOfDistributionCompleted = 0;
         firstDistributed = false;
-        _nextAmountOfDistribution = 800000 ether;
+        _nextAmountOfDistribution = 552900 ether;
     }
 
     function firstDistributeTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
@@ -138,7 +138,7 @@ contract Locker is Ownable {
     function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
         require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
         require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
-        require(_lastTimeDistributed + 1 seconds <= block.timestamp, "It hasn't been 1 second yet!");
+        require(_lastTimeDistributed + 30 days <= block.timestamp, "It hasn't been 1 second yet!");
         require(numberOfDistributionCompleted <= 59, "All distributions are completed!");
         _lastTimeDistributed = block.timestamp;
         if (numberOfDistributionCompleted == 59) {
