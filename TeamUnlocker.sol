@@ -1,43 +1,43 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.16;
-
+pragma solidity ^0.8.17;
+ 
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
     }
-
+ 
     function _msgData() internal view virtual returns (bytes calldata) {
         return msg.data;
     }
 }
-
+ 
 abstract contract Ownable is Context {
     address private _owner;
-
+ 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
+ 
     constructor() {
         _transferOwnership(_msgSender());
     }
-
+ 
     function owner() public view virtual returns (address) {
         return _owner;
     }
-
+ 
     modifier onlyOwner() {
         require(owner() == _msgSender(), "Ownable: caller is not the owner");
         _;
     }
-
+ 
     function renounceOwnership() public virtual onlyOwner {
         _transferOwnership(address(0));
     }
-
+ 
     function transferOwnership(address newOwner) public virtual onlyOwner {
         require(newOwner != address(0), "Ownable: new owner is the zero address");
         _transferOwnership(newOwner);
     }
-
+ 
     function _transferOwnership(address newOwner) internal virtual {
         address oldOwner = _owner;
         _owner = newOwner;
@@ -61,108 +61,111 @@ interface IERC20 {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
-
-contract TeamUnlocker is Ownable {
-
-    address[3] public addresses = [0x51b47712bA4bf60158958F6634bf47eA1BAF1E15, 0xb384e16f7F3188747Bb21E6B16f9086c13EC5a1e, 0x57c2765Aea80DdE0Fcb09cdF47672b0e9DD6604a];
-
+ 
+contract Locker is Ownable {
+ 
+    address[] private _addresses = [0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db, 0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB, 0x617F2E2fD72FD9D5503197092aC168c91465E7f2,
+    0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db, 0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB, 0x617F2E2fD72FD9D5503197092aC168c91465E7f2,
+    0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db, 0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB, 0x617F2E2fD72FD9D5503197092aC168c91465E7f2,
+    0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db, 0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB, 0x617F2E2fD72FD9D5503197092aC168c91465E7f2,
+    0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, 0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db, 0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB, 0x617F2E2fD72FD9D5503197092aC168c91465E7f2];
+ 
     uint private constant SECONDS_PER_DAY = 24 * 60 * 60;
     uint private constant SECONDS_PER_HOUR = 60 * 60;
     uint private constant SECONDS_PER_MINUTE = 60;
     int private constant OFFSET19700101 = 2440588;
-
+ 
     function _daysFromDate(uint year, uint month, uint day) internal pure returns (uint _days) {
         require(year >= 1970);
         int _year = int(year);
         int _month = int(month);
         int _day = int(day);
-
+ 
         int __days = _day
           - 32075
           + 1461 * (_year + 4800 + (_month - 14) / 12) / 4
           + 367 * (_month - 2 - (_month - 14) / 12 * 12) / 12
           - 3 * ((_year + 4900 + (_month - 14) / 12) / 100) / 4
           - OFFSET19700101;
-
+ 
         _days = uint(__days);
     }
-
+ 
     function timestampFromDateTime(uint year, uint month, uint day, uint hour, uint minute, uint second) internal pure returns (uint timestamp) {
         timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second;
     }
-
+ 
     using SafeMath for uint256;
     IERC20 tokenization;
-
+ 
     uint public numberOfDistributionCompleted;
     bool firstDistributed;
     uint public _lastTimeDistributed;
     uint256 public _nextAmountOfDistribution;
     uint256 public _totalUnlocked;
-
+ 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
-
-    uint public unlockTime = timestampFromDateTime(2022, 9, 6, 9, 17, 59);
-
+ 
+    uint public unlockTime = timestampFromDateTime(2022, 11, 1, 23, 59, 59);
+ 
     bool internal _inUnlockingProcess;
-
+ 
     modifier lockTheUnlockProcess() {
         require(!_inUnlockingProcess, "No re-entrancy");
         _inUnlockingProcess = true;
         _;
         _inUnlockingProcess = false;
     }
-
+ 
     constructor (address _tokenization) {
         tokenization = IERC20(_tokenization);
         numberOfDistributionCompleted = 0;
         firstDistributed = false;
         _nextAmountOfDistribution = 375000 ether;
     }
-
+ 
     function firstDistributeTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
         require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
         require(firstDistributed == false, "Already executed!");
-        for (uint i = 0; i < addresses.length; i++) {
-            tokenization.transfer(addresses[i], _nextAmountOfDistribution.div(3));
-            _lastTimeDistributed = block.timestamp;
-            emit TokenUnlocked(_nextAmountOfDistribution.div(3), _lastTimeDistributed, numberOfDistributionCompleted + 1);
+ 
+        for(uint i = 0; i < _addresses.length; i++) {
+            tokenization.transfer(_addresses[i], _nextAmountOfDistribution.div(100).mul(5));
         }
+ 
         _totalUnlocked += _nextAmountOfDistribution;
-        firstDistributed = true;
-        numberOfDistributionCompleted += 1;
-        _nextAmountOfDistribution = 375000 ether;
-        return true;
-    }
-
-    function readFirstDistributed() public view onlyOwner returns (bool) {
-        return firstDistributed;
-    }
-
-    function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
-        require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
-        require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
-        require(_lastTimeDistributed + 1 seconds <= block.timestamp, "It hasn't been 1 second yet!");
-        require(numberOfDistributionCompleted <= 47, "All distributions are completed!");
         _lastTimeDistributed = block.timestamp;
-        if (numberOfDistributionCompleted == 47) {
-            for (uint i = 0; i < addresses.length; i++) {
-                tokenization.transfer(addresses[i], _nextAmountOfDistribution.div(4));
-                emit TokenUnlocked(_nextAmountOfDistribution.div(4), _lastTimeDistributed, numberOfDistributionCompleted + 1);
-            }
-            _totalUnlocked += _nextAmountOfDistribution;
-        } else {
-            for (uint i = 0; i < addresses.length; i++) {
-                tokenization.transfer(addresses[i], _nextAmountOfDistribution.div(3));
-                emit TokenUnlocked(_nextAmountOfDistribution.div(3), _lastTimeDistributed, numberOfDistributionCompleted + 1);
-            }
-            _totalUnlocked += _nextAmountOfDistribution;
-        }
+        firstDistributed = true;
+        emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
         numberOfDistributionCompleted += 1;
         _nextAmountOfDistribution = _nextAmountOfDistribution;
         return true;
     }
-
+ 
+    function readFirstDistributed() public view onlyOwner returns (bool) {
+        return firstDistributed;
+    }
+ 
+    function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
+        require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
+        require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
+        require(_lastTimeDistributed + 30 days <= block.timestamp, "It hasn't been 30 days yet!");
+        require(numberOfDistributionCompleted <= 47, "All distributions are completed!");
+        _lastTimeDistributed = block.timestamp;
+        if (numberOfDistributionCompleted == 47) {
+            for(uint i = 0; i < _addresses.length; i++) {
+                tokenization.transfer(_addresses[i], _nextAmountOfDistribution.div(100).mul(5));
+            }
+            _totalUnlocked += _nextAmountOfDistribution;
+        } else {
+            tokenization.transfer(msg.sender, _nextAmountOfDistribution);
+            _totalUnlocked += _nextAmountOfDistribution;
+        }
+        emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
+        numberOfDistributionCompleted += 1;
+        _nextAmountOfDistribution = _nextAmountOfDistribution;
+        return true;
+    }
+ 
     function readLockedTokenName() public view virtual onlyOwner returns (string memory) {
         return tokenization.name();
     }
@@ -172,8 +175,8 @@ contract TeamUnlocker is Ownable {
     function readBalanceOfLocker() public view virtual onlyOwner returns (uint256) {
         return tokenization.balanceOf(address(this));
     }
-    function unlockFourYearsLater() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
-        require(numberOfDistributionCompleted == 48, "Either it's already been 60 distributions or already exceeded it!");
+    function unlockHundredYearsLater() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
+        require(numberOfDistributionCompleted == 48, "Either it's already been 48 distributions or already exceeded it!");
         uint256 _thisBalance = tokenization.balanceOf(address(this));
         require(_thisBalance > 0, "Contract doesn't have balance!");
         tokenization.transfer(msg.sender, _thisBalance);
@@ -184,11 +187,11 @@ contract TeamUnlocker is Ownable {
         numberOfDistributionCompleted++;
         return true;
     }
-
+ 
 }
-
+ 
 library SafeMath {
-
+ 
     function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
         unchecked {
             uint256 c = a + b;

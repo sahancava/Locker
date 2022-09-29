@@ -99,7 +99,7 @@ contract ICOLock is Ownable {
 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
 
-    uint public unlockTime = timestampFromDateTime(2022, 9, 6, 18, 2, 59);
+    uint public unlockTime = timestampFromDateTime(2023, 1, 15, 23, 59, 59);
 
     bool internal _inUnlockingProcess;
 

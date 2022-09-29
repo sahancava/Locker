@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 library Strings {
     bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
@@ -996,7 +996,7 @@ interface IERC721Enumerable is IERC721 {
      */
     function tokenByIndex(uint256 index) external view returns (uint256);
 }
-pragma solidity 0.8.16;
+pragma solidity 0.8.17;
 
 
 abstract contract Ownable is Context {
