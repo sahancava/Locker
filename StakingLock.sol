@@ -62,7 +62,7 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract OperationalGrants is Ownable {
+contract StakingLock is Ownable {
     uint private constant SECONDS_PER_DAY = 24 * 60 * 60;
     uint private constant SECONDS_PER_HOUR = 60 * 60;
     uint private constant SECONDS_PER_MINUTE = 60;
@@ -114,7 +114,7 @@ contract OperationalGrants is Ownable {
         tokenization = IERC20(_tokenization);
         numberOfDistributionCompleted = 0;
         firstDistributed = false;
-        _nextAmountOfDistribution = 1500000 ether;
+        _nextAmountOfDistribution = 45000000 ether;
     }
 
     function firstDistributeTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
@@ -134,23 +134,23 @@ contract OperationalGrants is Ownable {
         return firstDistributed;
     }
 
-    function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
-        require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
-        require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
-        require(_lastTimeDistributed + 30 days <= block.timestamp, "It hasn't been 30 days yet!");
-        require(numberOfDistributionCompleted <= 9, "All distributions are completed!");
-        _lastTimeDistributed = block.timestamp;
-        if (numberOfDistributionCompleted == 9) {
-            tokenization.transfer(msg.sender, _nextAmountOfDistribution.div(100).mul(90));
-            _totalUnlocked += _nextAmountOfDistribution.div(100).mul(90);
-        } else {
-            tokenization.transfer(msg.sender, _nextAmountOfDistribution);
-            _totalUnlocked += _nextAmountOfDistribution;
-        }
-        emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
-        numberOfDistributionCompleted += 1;
-        return true;
-    }
+    // function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
+    //     require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
+    //     require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
+    //     require(_lastTimeDistributed + 90 days <= block.timestamp, "It hasn't been 90 days yet!");
+    //     require(numberOfDistributionCompleted <= 3, "All distributions are completed!");
+    //     _lastTimeDistributed = block.timestamp;
+    //     if (numberOfDistributionCompleted == 3) {
+    //         tokenization.transfer(msg.sender, _nextAmountOfDistribution.div(100).mul(90));
+    //         _totalUnlocked += _nextAmountOfDistribution.div(100).mul(90);
+    //     } else {
+    //         tokenization.transfer(msg.sender, _nextAmountOfDistribution);
+    //         _totalUnlocked += _nextAmountOfDistribution;
+    //     }
+    //     emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
+    //     numberOfDistributionCompleted += 1;
+    //     return true;
+    // }
 
     function readLockedTokenName() public view virtual onlyOwner returns (string memory) {
         return tokenization.name();
@@ -162,11 +162,11 @@ contract OperationalGrants is Ownable {
         return tokenization.balanceOf(address(this));
     }
     function unlockThreeHundredDaysLater() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
-        require(numberOfDistributionCompleted == 10, "Either it's already been 10 distributions or already exceeded it!");
+        require(numberOfDistributionCompleted == 1, "Either it's already been 1 distributions or already exceeded it!");
         uint256 _thisBalance = tokenization.balanceOf(address(this));
         require(_thisBalance > 0, "Contract doesn't have balance!");
         tokenization.transfer(msg.sender, _thisBalance);
-        if (numberOfDistributionCompleted == 10) {
+        if (numberOfDistributionCompleted == 1) {
             _nextAmountOfDistribution = 0;
         }
         _totalUnlocked += _thisBalance;

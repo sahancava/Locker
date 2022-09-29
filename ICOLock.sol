@@ -62,7 +62,7 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract OperationalGrants is Ownable {
+contract ICOLock is Ownable {
     uint private constant SECONDS_PER_DAY = 24 * 60 * 60;
     uint private constant SECONDS_PER_HOUR = 60 * 60;
     uint private constant SECONDS_PER_MINUTE = 60;
@@ -114,7 +114,7 @@ contract OperationalGrants is Ownable {
         tokenization = IERC20(_tokenization);
         numberOfDistributionCompleted = 0;
         firstDistributed = false;
-        _nextAmountOfDistribution = 1500000 ether;
+        _nextAmountOfDistribution = 3000000 ether;
     }
 
     function firstDistributeTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
@@ -137,10 +137,10 @@ contract OperationalGrants is Ownable {
     function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
         require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
         require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
-        require(_lastTimeDistributed + 30 days <= block.timestamp, "It hasn't been 30 days yet!");
-        require(numberOfDistributionCompleted <= 9, "All distributions are completed!");
+        require(_lastTimeDistributed + 90 days <= block.timestamp, "It hasn't been 90 days yet!");
+        require(numberOfDistributionCompleted <= 3, "All distributions are completed!");
         _lastTimeDistributed = block.timestamp;
-        if (numberOfDistributionCompleted == 9) {
+        if (numberOfDistributionCompleted == 3) {
             tokenization.transfer(msg.sender, _nextAmountOfDistribution.div(100).mul(90));
             _totalUnlocked += _nextAmountOfDistribution.div(100).mul(90);
         } else {
@@ -162,11 +162,11 @@ contract OperationalGrants is Ownable {
         return tokenization.balanceOf(address(this));
     }
     function unlockThreeHundredDaysLater() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
-        require(numberOfDistributionCompleted == 10, "Either it's already been 10 distributions or already exceeded it!");
+        require(numberOfDistributionCompleted == 4, "Either it's already been 4 distributions or already exceeded it!");
         uint256 _thisBalance = tokenization.balanceOf(address(this));
         require(_thisBalance > 0, "Contract doesn't have balance!");
         tokenization.transfer(msg.sender, _thisBalance);
-        if (numberOfDistributionCompleted == 10) {
+        if (numberOfDistributionCompleted == 4) {
             _nextAmountOfDistribution = 0;
         }
         _totalUnlocked += _thisBalance;
