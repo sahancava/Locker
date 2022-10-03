@@ -99,7 +99,7 @@ contract StakingLock is Ownable {
 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
 
-    uint public unlockTime = timestampFromDateTime(2023, 2, 1, 23, 59, 59);
+    uint public unlockTime = timestampFromDateTime(2023, 3, 5, 9, 59, 59);
 
     bool internal _inUnlockingProcess;
 
@@ -134,24 +134,6 @@ contract StakingLock is Ownable {
         return firstDistributed;
     }
 
-    // function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
-    //     require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
-    //     require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
-    //     require(_lastTimeDistributed + 90 days <= block.timestamp, "It hasn't been 90 days yet!");
-    //     require(numberOfDistributionCompleted <= 3, "All distributions are completed!");
-    //     _lastTimeDistributed = block.timestamp;
-    //     if (numberOfDistributionCompleted == 3) {
-    //         tokenization.transfer(msg.sender, _nextAmountOfDistribution.div(100).mul(90));
-    //         _totalUnlocked += _nextAmountOfDistribution.div(100).mul(90);
-    //     } else {
-    //         tokenization.transfer(msg.sender, _nextAmountOfDistribution);
-    //         _totalUnlocked += _nextAmountOfDistribution;
-    //     }
-    //     emit TokenUnlocked(_nextAmountOfDistribution, _lastTimeDistributed, numberOfDistributionCompleted + 1);
-    //     numberOfDistributionCompleted += 1;
-    //     return true;
-    // }
-
     function readLockedTokenName() public view virtual onlyOwner returns (string memory) {
         return tokenization.name();
     }
@@ -162,7 +144,7 @@ contract StakingLock is Ownable {
         return tokenization.balanceOf(address(this));
     }
     function unlockThreeHundredDaysLater() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
-        require(numberOfDistributionCompleted == 1, "Either it's already been 1 distributions or already exceeded it!");
+        require(numberOfDistributionCompleted == 1, "Either it's already been 1 distribution or already exceeded it!");
         uint256 _thisBalance = tokenization.balanceOf(address(this));
         require(_thisBalance > 0, "Contract doesn't have balance!");
         tokenization.transfer(msg.sender, _thisBalance);

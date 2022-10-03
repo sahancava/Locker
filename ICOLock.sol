@@ -10,7 +10,6 @@ abstract contract Context {
         return msg.data;
     }
 }
-
 abstract contract Ownable is Context {
     address private _owner;
 
@@ -99,7 +98,7 @@ contract ICOLock is Ownable {
 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
 
-    uint public unlockTime = timestampFromDateTime(2023, 1, 15, 23, 59, 59);
+    uint public unlockTime = timestampFromDateTime(2023, 1, 14, 23, 59, 59);
 
     bool internal _inUnlockingProcess;
 

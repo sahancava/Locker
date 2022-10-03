@@ -99,7 +99,7 @@ contract ReservedFunds is Ownable {
 
     event TokenUnlocked(uint256 amount, uint256 dateTime, uint _numberOfDistributionCompleted);
 
-    uint public unlockTime = timestampFromDateTime(2022, 10, 5, 23, 59, 59);
+    uint public unlockTime = timestampFromDateTime(2022, 10, 20, 9, 59, 59);
 
     bool internal _inUnlockingProcess;
 
@@ -137,7 +137,7 @@ contract ReservedFunds is Ownable {
     function nextDistributionTheLockedTokens() public virtual onlyOwner lockTheUnlockProcess() returns (bool) {
         require(unlockTime <= block.timestamp, "Unlock time is not there yet!");
         require(firstDistributed == true, "firstDistributeTheLockedTokens function hasn't been executed yet!");
-        require(_lastTimeDistributed + 60 days <= block.timestamp, "It hasn't been 60 days yet!");
+        require(_lastTimeDistributed + 90 days <= block.timestamp, "It hasn't been 90 days yet!");
         require(numberOfDistributionCompleted <= 2, "All distributions are completed!");
         _lastTimeDistributed = block.timestamp;
         if (numberOfDistributionCompleted == 2) {
